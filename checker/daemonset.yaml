@@ -1,0 +1,28 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: vaultcheck-checker
+spec:
+  template:
+    spec:
+      containers:
+      - name: check
+        image: docker.io/alpine/curl
+        env:
+        - name: NODENAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+        command:
+          - sh
+          - -c
+          - |
+            while :; do
+              curl -SsfL -o /tmp/content -w '%output{/tmp/http_code}%{http_code}' https://vault-ui-vault.apps.nerc-ocp-infra.rc.fas.harvard.edu
+              curl -Ssf -F nodename="$NODENAME" -F http_code=@/tmp/http_code -F content=@/tmp/content http://vaultcheck:8080/report
+              sleep 5
+            done
+      tolerations:
+      - effect: NoSchedule
+        key: nvidia.com/gpu.product
+        operator: Exists
